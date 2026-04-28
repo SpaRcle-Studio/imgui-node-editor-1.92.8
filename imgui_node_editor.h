@@ -351,11 +351,15 @@ IMGUI_NODE_EDITOR_API void EndGroupHint();
 // TODO: Add a way to manage node background channels
 IMGUI_NODE_EDITOR_API ImDrawList* GetNodeBackgroundDrawList(NodeId nodeId);
 
-IMGUI_NODE_EDITOR_API bool Link(LinkId id, PinId startPinId, PinId endPinId, const ImVec4& color = ImVec4(1, 1, 1, 1), float thickness = 1.0f);
+// `color` default is the sentinel ImVec4(0,0,0,0) ("auto"): when alpha is 0
+// the implementation substitutes the current ImGuiCol_Text, so links stay
+// readable on both light and dark themes. Pass any non-zero-alpha color to
+// override.
+IMGUI_NODE_EDITOR_API bool Link(LinkId id, PinId startPinId, PinId endPinId, const ImVec4& color = ImVec4(0, 0, 0, 0), float thickness = 1.0f);
 
 IMGUI_NODE_EDITOR_API void Flow(LinkId linkId, FlowDirection direction = FlowDirection::Forward);
 
-IMGUI_NODE_EDITOR_API bool BeginCreate(const ImVec4& color = ImVec4(1, 1, 1, 1), float thickness = 1.0f);
+IMGUI_NODE_EDITOR_API bool BeginCreate(const ImVec4& color = ImVec4(0, 0, 0, 0), float thickness = 1.0f);
 IMGUI_NODE_EDITOR_API bool QueryNewLink(PinId* startId, PinId* endId);
 IMGUI_NODE_EDITOR_API bool QueryNewLink(PinId* startId, PinId* endId, const ImVec4& color, float thickness = 1.0f);
 IMGUI_NODE_EDITOR_API bool QueryNewNode(PinId* pinId);
