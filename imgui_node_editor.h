@@ -338,9 +338,84 @@ IMGUI_NODE_EDITOR_API void PinPivotSize(const ImVec2& size);
 IMGUI_NODE_EDITOR_API void PinPivotScale(const ImVec2& scale);
 IMGUI_NODE_EDITOR_API void PinPivotAlignment(const ImVec2& alignment);
 IMGUI_NODE_EDITOR_API void EndPin();
+
+// --- Group nodes ----------------------------------------------------------
+//
+// Calling Group(size) inside a BeginNode/EndNode block turns the node into a
+// "Group node": a tinted, resizable rectangle (StyleColor_GroupBg / GroupBorder)
+// that can act as a labeled container for other nodes.
+//
+// Behavior:
+//   - The user can resize the group by dragging its bottom-right corner.
+//   - Dragging the group drags every node whose bounds fall inside it
+//     (handled internally by the editor's DragAction).
+//   - `size` is only the INITIAL size, applied on the very first frame the
+//     group exists. Subsequent user resizes are persisted by the editor and
+//     override `size`. To resize a group programmatically afterwards, use
+//     SetGroupSize(node_id, size).
+//   - Anything drawn between BeginNode and Group(size) lands in the group's
+//     "title strip" above the colored rectangle: title text, buttons, and
+//     even pins via BeginPin/EndPin (useful for "summary" pins on a
+//     collapsed group).
+//
+// Minimal example (C++):
+//
+//     ed::BeginNode(groupId);
+//         ImGui::TextUnformatted("My Group");
+//         ed::Group(ImVec2(300, 200));   // initial size only
+//     ed::EndNode();
+//
+// Minimal example (Python):
+//
+//     ed.begin_node(group_id)
+//     imgui.text_unformatted("My Group")
+//     ed.group(imgui.ImVec2(300, 200))   # initial size only
+//     ed.end_node()
+//
+// To find the nodes contained in a group, use the editor's geometry getters
+// (no internal API needed): get the group's GetNodePosition / GetNodeSize,
+// then for each candidate node test whether its center sits inside the
+// group's rectangle.
+//
 IMGUI_NODE_EDITOR_API void Group(const ImVec2& size);
 IMGUI_NODE_EDITOR_API void EndNode();
 
+// --- Group hints ----------------------------------------------------------
+//
+// A "group hint" is overlay UI that the editor renders ONLY when zoomed out
+// far enough that the in-node title becomes hard to read. BeginGroupHint
+// returns false at normal zoom; it returns true and fades in below ~0.75x.
+// The intended use is to draw a large title above the group so users can
+// still identify it at low zoom.
+//
+// GetGroupMin / GetGroupMax return the targeted group's bounds in SCREEN
+// coordinates so you can position your overlay relative to it.
+// GetHintForegroundDrawList / GetHintBackgroundDrawList return draw lists
+// that sit above (foreground) and below (background) the editor's normal
+// content, so your overlay isn't clipped by the canvas.
+//
+// Minimal example (C++):
+//
+//     if (ed::BeginGroupHint(groupId))
+//     {
+//         ImVec2 min = ed::GetGroupMin();
+//         auto*  fg  = ed::GetHintForegroundDrawList();
+//         fg->AddText(ImVec2(min.x, min.y - 24.0f),
+//                     ImGui::GetColorU32(ImGuiCol_Text),
+//                     "My Group");
+//     }
+//     ed::EndGroupHint();
+//
+// Minimal example (Python):
+//
+//     if ed.begin_group_hint(group_id):
+//         min_ = ed.get_group_min()
+//         fg = ed.get_hint_foreground_draw_list()
+//         fg.add_text(imgui.ImVec2(min_.x, min_.y - 24.0),
+//                     imgui.get_color_u32(imgui.Col_.text.value),
+//                     "My Group")
+//     ed.end_group_hint()
+//
 IMGUI_NODE_EDITOR_API bool BeginGroupHint(NodeId nodeId);
 IMGUI_NODE_EDITOR_API ImVec2 GetGroupMin();
 IMGUI_NODE_EDITOR_API ImVec2 GetGroupMax();
