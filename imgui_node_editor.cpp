@@ -260,11 +260,13 @@ static void ImDrawListSplitter_SwapChannels(ImDrawListSplitter* splitter, int le
 
 static void ImDrawList_SwapChannels(ImDrawList* drawList, int left, int right)
 {
+    IMGUI_TRACY_ZONE;
     ImDrawListSplitter_SwapChannels(&drawList->_Splitter, left, right);
 }
 
 static void ImDrawList_SwapSplitter(ImDrawList* drawList, ImDrawListSplitter& splitter)
 {
+    IMGUI_TRACY_ZONE;
     auto& currentSplitter = drawList->_Splitter;
 
     std::swap(currentSplitter._Current, splitter._Current);
@@ -672,6 +674,7 @@ bool ed::Node::EndDrag()
 
 void ed::Node::Draw(ImDrawList* drawList, DrawFlags flags)
 {
+    IMGUI_TRACY_ZONE;
     if (flags == Detail::Object::None)
     {
         drawList->ChannelsSetCurrent(m_Channel + c_NodeBackgroundChannel);
@@ -766,6 +769,7 @@ void ed::Node::DrawBorder(ImDrawList* drawList, ImU32 color, float thickness, fl
 
 void ed::Node::GetGroupedNodes(std::vector<Node*>& result, bool append)
 {
+    IMGUI_TRACY_ZONE;
     if (!append)
         result.resize(0);
 
@@ -919,6 +923,7 @@ ed::NodeRegion ed::Node::GetRegion(const ImVec2& point) const
 //------------------------------------------------------------------------------
 void ed::Link::Draw(ImDrawList* drawList, DrawFlags flags)
 {
+    IMGUI_TRACY_ZONE;
     if (flags == None)
     {
         drawList->ChannelsSetCurrent(c_LinkChannel_Links);
@@ -1292,6 +1297,7 @@ void ed::EditorContext::Begin(const char* id, const ImVec2& size)
 
 void ed::EditorContext::End()
 {
+    IMGUI_TRACY_ZONE;
     //auto& io          = ImGui::GetIO();
     auto  control     = BuildControl(m_CurrentAction && m_CurrentAction->IsDragging()); // NavigateAction.IsMovingOverEdge()
     //auto& editorStyle = GetStyle();
@@ -1385,6 +1391,7 @@ void ed::EditorContext::End()
 
         auto accept = [&possibleAction, &control](EditorAction& action)
         {
+            IMGUI_TRACY_ZONE;
             auto result = action.Accept(control);
 
             if (result == EditorAction::True)
@@ -1437,10 +1444,11 @@ void ed::EditorContext::End()
         else if (!isDragging && m_CurrentAction && m_CurrentAction->AsDrag())
         {
             // Bring content of dragged group to front
-            std::vector<Node*> nodes;
+            static std::vector<Node*> nodes;
+            nodes.clear();
             control.ActiveNode->GetGroupedNodes(nodes);
 
-            std::stable_partition(m_Nodes.begin(), m_Nodes.end(), [&nodes](Node* node)
+            std::stable_partition(m_Nodes.begin(), m_Nodes.end(), [](Node* node)
             {
                 return std::find(nodes.begin(), nodes.end(), node) == nodes.end();
             });
@@ -1468,11 +1476,12 @@ void ed::EditorContext::End()
         });
     }
 
-    // Apply Z order
-    std::stable_sort(m_Nodes.begin(), m_Nodes.end(), [](const auto& lhs, const auto& rhs)
-    {
+    static auto&& zSort = [](const ObjectWrapper<Node>& lhs, const ObjectWrapper<Node>& rhs) {
         return lhs->m_ZPosition < rhs->m_ZPosition;
-    });
+    };
+
+    // Apply Z order
+    std::stable_sort(m_Nodes.begin(), m_Nodes.end(), zSort);
 
 # if 1
     // Every node has few channels assigned. Grow channel list
@@ -1581,6 +1590,7 @@ void ed::EditorContext::End()
         // will bring them back to global space.
         auto preTransformClipRect = [this](int channelIndex)
         {
+            IMGUI_TRACY_ZONE;
             ImDrawChannel& channel = m_DrawList->_Splitter._Channels[channelIndex];
             for (ImDrawCmd& cmd : channel._CmdBuffer)
             {
@@ -2217,6 +2227,10 @@ void ed::EditorContext::LoadSettings()
 
 void ed::EditorContext::SaveSettings()
 {
+    IMGUI_TRACY_ZONE;
+    if (!m_IsSavingEnabled)
+        return;
+
     m_Config.BeginSave();
 
     for (auto& node : m_Nodes)
@@ -2260,6 +2274,7 @@ void ed::EditorContext::MakeDirty(SaveReasonFlags reason, Node* node)
 
 ed::Link* ed::EditorContext::FindLinkAt(const ImVec2& p)
 {
+    IMGUI_TRACY_ZONE;
     for (auto& link : m_Links)
         if (link->TestHit(p, c_LinkSelectThickness))
             return link;
@@ -2312,6 +2327,7 @@ void ed::EditorContext::UnregisterAnimation(Animation* animation)
 
 void ed::EditorContext::UpdateAnimations()
 {
+    IMGUI_TRACY_ZONE;
     m_LastLiveAnimations = m_LiveAnimations;
 
     for (auto animation : m_LastLiveAnimations)
@@ -2362,6 +2378,7 @@ bool ed::EditorContext::AreShortcutsEnabled()
 
 ed::Control ed::EditorContext::BuildControl(bool allowOffscreen)
 {
+    IMGUI_TRACY_ZONE;
     m_IsHovered = false;
     m_IsHoveredWithoutOverlapp = false;
 
@@ -3358,6 +3375,7 @@ ed::NavigateAction::NavigateAction(EditorContext* editor, ImGuiEx::Canvas& canva
 
 ed::EditorAction::AcceptResult ed::NavigateAction::Accept(const Control& control)
 {
+    IMGUI_TRACY_ZONE;
     IM_ASSERT(!m_IsActive);
 
     if (m_IsActive)
@@ -3444,6 +3462,7 @@ ed::EditorAction::AcceptResult ed::NavigateAction::Accept(const Control& control
 
 bool ed::NavigateAction::Process(const Control& control)
 {
+    IMGUI_TRACY_ZONE;
     IM_UNUSED(control);
 
     if (!m_IsActive)
@@ -4245,6 +4264,7 @@ void ed::SelectAction::ShowMetrics()
 
 void ed::SelectAction::Draw(ImDrawList* drawList)
 {
+    IMGUI_TRACY_ZONE;
     if (!m_IsActive && !m_Animation.IsPlaying())
         return;
 

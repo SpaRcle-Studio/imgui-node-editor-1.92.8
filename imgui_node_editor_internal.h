@@ -1473,6 +1473,8 @@ struct EditorContext
 
     ImDrawList* GetDrawList() { return m_DrawList; }
 
+    void SetSavingEnabled(bool enabled) { m_IsSavingEnabled = enabled; }
+
 private:
     void LoadSettings();
     void SaveSettings();
@@ -1482,6 +1484,8 @@ private:
     void ShowMetrics(const Control& control);
 
     void UpdateAnimations();
+
+    bool                m_IsSavingEnabled = true;
 
     Config              m_Config;
 

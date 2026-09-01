@@ -133,6 +133,11 @@ void ax::NodeEditor::PopStyleVar(int count)
     s_Editor->GetStyle().PopVar(count);
 }
 
+void ax::NodeEditor::SetSavingEnabled(bool enabled)
+{
+    s_Editor->SetSavingEnabled(enabled);
+}
+
 void ax::NodeEditor::Begin(const char* id, const ImVec2& size)
 {
     s_Editor->Begin(id, size);
