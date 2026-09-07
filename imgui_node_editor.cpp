@@ -1481,7 +1481,9 @@ void ed::EditorContext::End()
     };
 
     // Apply Z order
-    std::stable_sort(m_Nodes.begin(), m_Nodes.end(), zSort);
+    if (!m_Nodes.empty()) {
+        std::stable_sort(m_Nodes.begin(), m_Nodes.end(), zSort);
+    }
 
 # if 1
     // Every node has few channels assigned. Grow channel list
