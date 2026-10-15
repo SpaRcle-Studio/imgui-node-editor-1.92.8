@@ -216,6 +216,11 @@ struct Object
     inline friend DrawFlags& operator|=(DrawFlags& lhs, DrawFlags rhs) { lhs = lhs | rhs; return lhs; }
     inline friend DrawFlags& operator&=(DrawFlags& lhs, DrawFlags rhs) { lhs = lhs & rhs; return lhs; }
 
+    static constexpr uint32_t c_AliveMagic = 0xA11BE5ED;
+    static constexpr uint32_t c_DeadMagic  = 0xDEADDEAD;
+
+    uint32_t m_Magic = c_AliveMagic;
+
     EditorContext* const Editor;
 
     bool    m_IsLive;
@@ -230,7 +235,9 @@ struct Object
     {
     }
 
-    virtual ~Object() = default;
+    virtual ~Object() { m_Magic = c_DeadMagic; }
+
+    bool IsAlive() const { return m_Magic == c_AliveMagic; }
 
     virtual ObjectId ID() = 0;
 
@@ -1474,6 +1481,8 @@ struct EditorContext
     ImDrawList* GetDrawList() { return m_DrawList; }
 
     void SetSavingEnabled(bool enabled) { m_IsSavingEnabled = enabled; }
+
+    void ValidateObjects(const char* where);
 
 private:
     void LoadSettings();

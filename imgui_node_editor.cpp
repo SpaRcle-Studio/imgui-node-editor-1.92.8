@@ -1168,6 +1168,59 @@ ed::EditorContext::~EditorContext()
     m_Splitter.ClearFreeMemory();
 }
 
+// Debug-only sanity check of object lists: catches dangling/foreign objects before they crash sorting or drawing.
+void ed::EditorContext::ValidateObjects(const char* where)
+{
+    static auto validate = [](auto& objects, const char* kind, const char* where, EditorContext* editor)
+    {
+        for (size_t i = 0; i < objects.size(); ++i)
+        {
+            auto& wrapper = objects[i];
+            auto  object  = wrapper.m_Object;
+
+            if (!object)
+            {
+                printf("[NodeEditor] %s: %s[%zu] is null (id %p)\n", where, kind, i, wrapper.m_ID.AsPointer());
+                IM_DEBUG_BREAK();
+                continue;
+            }
+
+            if (!object->IsAlive())
+            {
+                printf("[NodeEditor] %s: %s[%zu] = %p is dead (magic %08X, id %p)\n", where, kind, i, (void*)object, object->m_Magic, wrapper.m_ID.AsPointer());
+                IM_DEBUG_BREAK();
+                continue;
+            }
+
+            if (object->Editor != editor)
+            {
+                printf("[NodeEditor] %s: %s[%zu] = %p belongs to editor %p, expected %p\n", where, kind, i, (void*)object, (void*)object->Editor, (void*)editor);
+                IM_DEBUG_BREAK();
+            }
+
+            if (object->ID().AsPointer() != wrapper.m_ID.AsPointer())
+            {
+                printf("[NodeEditor] %s: %s[%zu] = %p id mismatch (%p != %p)\n", where, kind, i, (void*)object, object->ID().AsPointer(), wrapper.m_ID.AsPointer());
+                IM_DEBUG_BREAK();
+            }
+        }
+    };
+
+    validate(m_Nodes, "node", where, this);
+    validate(m_Pins,  "pin",  where, this);
+    validate(m_Links, "link", where, this);
+
+    for (size_t i = 0; i < m_SelectedObjects.size(); ++i)
+    {
+        auto object = m_SelectedObjects[i];
+        if (!object || !object->IsAlive())
+        {
+            printf("[NodeEditor] %s: selected[%zu] = %p is dead\n", where, i, (void*)object);
+            IM_DEBUG_BREAK();
+        }
+    }
+}
+
 void ed::EditorContext::Begin(const char* id, const ImVec2& size)
 {
     m_EditorActiveId = ImGui::GetID(id);
@@ -1213,6 +1266,10 @@ void ed::EditorContext::Begin(const char* id, const ImVec2& size)
     resetAndCollect(m_Nodes);
     resetAndCollect(m_Pins);
     resetAndCollect(m_Links);
+
+#if defined(_DEBUG)
+    ValidateObjects("Begin");
+#endif
 
     m_DrawList = ImGui::GetWindowDrawList();
 
@@ -1439,7 +1496,8 @@ void ed::EditorContext::End()
         {
             // Bring active node to front
             auto activeNodeIt = std::find(m_Nodes.begin(), m_Nodes.end(), control.ActiveNode);
-            std::rotate(activeNodeIt, activeNodeIt + 1, m_Nodes.end());
+            if (activeNodeIt != m_Nodes.end())
+                std::rotate(activeNodeIt, activeNodeIt + 1, m_Nodes.end());
         }
         else if (!isDragging && m_CurrentAction && m_CurrentAction->AsDrag())
         {
@@ -1480,9 +1538,17 @@ void ed::EditorContext::End()
         return lhs->m_ZPosition < rhs->m_ZPosition;
     };
 
-    // Apply Z order
-    if (!m_Nodes.empty()) {
-        std::stable_sort(m_Nodes.begin(), m_Nodes.end(), zSort);
+    // Apply Z order (stable insertion sort, no allocations, never leaves array bounds)
+    for (size_t i = 1; i < m_Nodes.size(); ++i)
+    {
+        auto   current = m_Nodes[i];
+        size_t j       = i;
+        while (j > 0 && zSort(current, m_Nodes[j - 1]))
+        {
+            m_Nodes[j] = m_Nodes[j - 1];
+            --j;
+        }
+        m_Nodes[j] = current;
     }
 
 # if 1
